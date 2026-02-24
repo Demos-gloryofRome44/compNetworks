@@ -33,9 +33,10 @@
 *.lib
 
 # Executables
+server
+client
 *.exe
 *.out
-*.app
 
 # debug information files
 *.dwo
