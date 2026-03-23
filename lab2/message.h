@@ -1,5 +1,4 @@
-#ifndef MESSAGE_H
-#define MESSAGE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -23,5 +22,3 @@ enum
     MSG_PONG = 5,
     MSG_BYE = 6
 };
-
-#endif

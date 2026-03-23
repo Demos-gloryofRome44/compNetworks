@@ -2,7 +2,6 @@
 #include <vector>
 #include <queue>
 #include <string>
-#include <cstring>
 #include <unistd.h>
 #include <pthread.h>
 #include <arpa/inet.h>
@@ -10,25 +9,12 @@
 #include <netinet/in.h>
 #include <csignal>
 #include <atomic>
-#include <algorithm>
+
+#include "message.h"
+#include "net_utils.h"
 
 #define PORT 9999
-#define MAX_PAYLOAD 1024
 #define THREAD_POOL_SIZE 10
-constexpr size_t HEADER_SIZE = sizeof(uint32_t) + sizeof(uint8_t);
-
-enum MessageType {
-    MSG_HELLO = 1, MSG_WELCOME = 2, MSG_TEXT = 3,
-    MSG_PING = 4, MSG_PONG = 5, MSG_BYE = 6
-};
-
-#pragma pack(push, 1)
-struct Message {
-    uint32_t length;
-    uint8_t  type;
-    char     payload[MAX_PAYLOAD];
-};
-#pragma pack(pop)
 
 struct Client {
     int socket;
@@ -113,47 +99,6 @@ public:
 
 ThreadSafeQueue connQueue;
 ClientManager clients;
-
-int recvFull(int fd, void* buf, size_t len) {
-    size_t got = 0;
-    while (got < len) {
-        int r = recv(fd, (char*)buf + got, len - got, 0);
-        if (r <= 0) return -1;
-        got += r;
-    }
-    return 0;
-}
-
-int sendFull(int fd, const void* buf, size_t len) {
-    size_t sent = 0;
-    while (sent < len) {
-        int s = send(fd, (const char*)buf + sent, len - sent, 0);
-        if (s <= 0) return -1;
-        sent += s;
-    }
-    return 0;
-}
-
-bool recvMessage(int fd, Message& msg, size_t& payloadLen) {
-    if (recvFull(fd, &msg, HEADER_SIZE) < 0) return false;
-    if (msg.length < sizeof(uint8_t)) return false;
-    payloadLen = msg.length - sizeof(uint8_t);
-    if (payloadLen > MAX_PAYLOAD) return false;
-    if (payloadLen > 0 && recvFull(fd, msg.payload, payloadLen) < 0) return false;
-    if (payloadLen < MAX_PAYLOAD) msg.payload[payloadLen] = '\0';
-    else msg.payload[MAX_PAYLOAD - 1] = '\0';
-    return true;
-}
-
-bool sendMessageRaw(int fd, uint8_t type, const std::string& text) {
-    const size_t payloadLen = std::min(text.size() + 1, static_cast<size_t>(MAX_PAYLOAD));
-    Message msg{};
-    msg.length = static_cast<uint32_t>(sizeof(uint8_t) + payloadLen);
-    msg.type = type;
-    std::memcpy(msg.payload, text.c_str(), payloadLen - 1);
-    msg.payload[payloadLen - 1] = '\0';
-    return sendFull(fd, &msg, HEADER_SIZE + payloadLen) == 0;
-}
 
 void* worker(void*) {
     int csock;
